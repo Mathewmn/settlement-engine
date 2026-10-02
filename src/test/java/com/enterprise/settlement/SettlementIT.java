@@ -86,7 +86,8 @@ class SettlementIT {
     void failedOutboxWriteRollsBackSettlement() {
         String key = "rollback-" + UUID.randomUUID();
         var cmd = new ProcessSettlementCommand(key, "debtor", "creditor", BigDecimal.TEN, "EUR");
-        jdbc.execute("ALTER TABLE outbox_events ADD CONSTRAINT reject_test CHECK (aggregate_type <> 'SettlementTransaction')");
+        // Apply the failure injection to new writes without revalidating rows from earlier tests.
+        jdbc.execute("ALTER TABLE outbox_events ADD CONSTRAINT reject_test CHECK (aggregate_type <> 'SettlementTransaction') NOT VALID");
         try {
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> processSettlementUseCase.execute(cmd)).isInstanceOf(RuntimeException.class);
             assertThat(jdbc.queryForObject("SELECT count(*) FROM settlement_transactions WHERE idempotency_key = ?", Integer.class, key)).isZero();
